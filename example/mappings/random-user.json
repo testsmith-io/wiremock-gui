@@ -1,0 +1,22 @@
+{
+  "id" : "c3d4e5f6-aaaa-bbbb-cccc-111122223333",
+  "name" : "Random user generator",
+  "request" : {
+    "urlPath" : "/api/random-user",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"id\": \"{{randomValue type='UUID'}}\",\n  \"firstName\": \"{{random 'Name.firstName'}}\",\n  \"lastName\": \"{{random 'Name.lastName'}}\",\n  \"email\": \"{{random 'Internet.emailAddress'}}\",\n  \"phone\": \"{{random 'PhoneNumber.cellPhone'}}\",\n  \"jobTitle\": \"{{random 'Job.title'}}\",\n  \"company\": \"{{random 'Company.name'}}\",\n  \"address\": {\n    \"street\": \"{{random 'Address.streetAddress'}}\",\n    \"city\": \"{{random 'Address.city'}}\",\n    \"state\": \"{{random 'Address.stateAbbr'}}\",\n    \"zip\": \"{{random 'Address.zipCode'}}\",\n    \"country\": \"{{random 'Address.country'}}\"\n  }\n}",
+    "headers" : {
+      "Content-Type" : "application/json"
+    },
+    "transformers" : [ "response-template" ]
+  },
+  "uuid" : "c3d4e5f6-aaaa-bbbb-cccc-111122223333",
+  "persistent" : true,
+  "metadata" : {
+    "section" : "Users"
+  },
+  "insertionIndex" : 4
+}

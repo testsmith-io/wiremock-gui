@@ -1,0 +1,34 @@
+{
+  "id" : "b0001111-aaaa-bbbb-cccc-ddddeeee0003",
+  "name" : "Todo flow - all completed",
+  "request" : {
+    "urlPath" : "/api/todos",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "jsonBody" : {
+      "todos" : [ {
+        "id" : 1,
+        "title" : "Buy groceries",
+        "done" : true
+      }, {
+        "id" : 2,
+        "title" : "Write tests",
+        "done" : true
+      } ],
+      "total" : 2
+    },
+    "headers" : {
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "b0001111-aaaa-bbbb-cccc-ddddeeee0003",
+  "persistent" : true,
+  "scenarioName" : "Todo List",
+  "requiredScenarioState" : "completed",
+  "metadata" : {
+    "section" : "Todos"
+  },
+  "insertionIndex" : 0
+}

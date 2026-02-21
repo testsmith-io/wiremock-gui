@@ -1,0 +1,25 @@
+{
+  "id" : "b0001111-aaaa-bbbb-cccc-ddddeeee0002",
+  "name" : "Todo flow - list with items",
+  "request" : {
+    "urlPath" : "/api/todos",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"todos\": [\n    {\n      \"id\": 1,\n      \"title\": \"Buy {{random 'Address.country'}}\",\n      \"done\": false\n    },\n    {\n      \"id\": 2,\n      \"title\": \"Write tests\",\n      \"done\": false\n    }\n  ],\n  \"total\": 2\n}",
+    "headers" : {
+      "Content-Type" : "application/json"
+    },
+    "transformers" : [ "response-template" ]
+  },
+  "uuid" : "b0001111-aaaa-bbbb-cccc-ddddeeee0002",
+  "persistent" : true,
+  "scenarioName" : "Todo List",
+  "requiredScenarioState" : "has_items",
+  "newScenarioState" : "completed",
+  "metadata" : {
+    "section" : "Todos"
+  },
+  "insertionIndex" : 1
+}

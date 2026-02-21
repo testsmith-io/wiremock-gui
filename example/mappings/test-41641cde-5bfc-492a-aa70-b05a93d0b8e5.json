@@ -1,0 +1,20 @@
+{
+  "id" : "41641cde-5bfc-492a-aa70-b05a93d0b8e5",
+  "name" : "test",
+  "request" : {
+    "urlPath" : "/example",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n\"blend\":\"{{random 'Coffee.blendName'}}\",\n\"name\":\"{{random 'Beer.name'}}\",\n\"ingredient\":\"{{random 'Food.ingredient'}}\",\n\"genre\":\"{{random 'Music.genre'}}\",\n\"author\":\"{{random 'Book.author'}}\",\n\"title\":\"{{random 'Book.title'}}\",\n\"url\":\"{{request.url}}\",\n\"path\":\"{{request.path}}\",\n\"pathsegment\":\"{{request.pathSegments.[0]}}\",\n\"paramName\":\"{{request.query.paramName}}\",\n\"method\":\"{{request.method}}\",\n\"nody\":\"{{request.body}}\",\n\"jsonpath\":\"{{jsonPath request.body '$.message'}}\",\n\"clientIp\":\"{{request.clientIp}}\",\n\"now\":\"{{now}}\",\n\"baseUrl\":\"{{request.baseUrl}}\",\n\"now2\":\"{{now format='yyyy-MM-dd'}}\",\n\"uuid\":\"{{randomValue type='UUID'}}\",\n\"ALPHANUMERIC\":\"{{randomValue type='ALPHANUMERIC' length=16}}\",\n\"NUMERIC\":\"{{randomValue type='NUMERIC' length=8}}\",\n\"randomInt\":\"{{randomInt lower=1 upper=100}}\",\n\"math\":\"{{math 1 '+' 1}}\",\n\"first_name\":\"{{random 'Name.firstName'}}\",\n\"last_name\":\"{{random 'Name.lastName'}}\",\n\"full_name\":\"{{random 'Name.fullName'}}\",\n\"name_with_middle\":\"{{random 'Name.nameWithMiddle'}}\",\n\"prefix\":\"{{random 'Name.prefix'}}\",\n\"suffix\":\"{{random 'Name.suffix'}}\",\n\"email_address\":\"{{random 'Internet.emailAddress'}}\",\n\"safe_email_address\":\"{{random 'Internet.safeEmailAddress'}}\",\n\"url2\":\"{{random 'Internet.url'}}\",\n\"domain_name\":\"{{random 'Internet.domainName'}}\",\n\"ip_v4_address\":\"{{random 'Internet.ipV4Address'}}\",\n\"ip_v6_address\":\"{{random 'Internet.ipV6Address'}}\",\n\"mac_address\":\"{{random 'Internet.macAddress'}}\",\n\"uuid2\":\"{{random 'Internet.uuid'}}\",\n\"password\":\"{{random 'Internet.password'}}\",\n\"phone_number\":\"{{random 'PhoneNumber.phoneNumber'}}\",\n\"cell_phone\":\"{{random 'PhoneNumber.cellPhone'}}\",\n\"street_address\":\"{{random 'Address.streetAddress'}}\",\n\"city\":\"{{random 'Address.city'}}\",\n\"state\":\"{{random 'Address.state'}}\",\n\"state_abbr\":\"{{random 'Address.stateAbbr'}}\",\n\"zip_code\":\"{{random 'Address.zipCode'}}\",\n\"country\":\"{{random 'Address.country'}}\",\n\"latitude\":\"{{random 'Address.latitude'}}\",\n\"longitude\":\"{{random 'Address.longitude'}}\",\n\"company\":\"{{random 'Company.name'}}\",\n\"industry\":\"{{random 'Company.industry'}}\",\n\"bs\":\"{{random 'Company.bs'}}\",\n\"jobTitle\":\"{{random 'Job.title'}}\",\n\"field\":\"{{random 'Job.field'}}\",\n\"department\":\"{{random 'Commerce.department'}}\",\n\"product_name\":\"{{random 'Commerce.productName'}}\",\n\"price\":\"{{random 'Commerce.price'}}\",\n\"credit_card\":\"{{random 'Finance.creditCard'}}\",\n\"iban\":\"{{random 'Finance.iban'}}\",\n\"bic\":\"{{random 'Finance.bic'}}\",\n\"birthday\":\"{{random 'DateAndTime.birthday'}}\",\n\"future\":\"{{random 'TimeAndDate.future'}}\",\n\"past\":\"{{random 'TimeAndDate.past'}}\",\n\"word\":\"{{random 'Lorem.word'}}\",\n\"sentence\":\"{{random 'Lorem.sentence'}}\",\n\"paragraph\":\"{{random 'Lorem.paragraph'}}\",\n\"characters\":\"{{random 'Lorem.characters'}}\",\n\"ean13\":\"{{random 'Barcode.ean13'}}\",\n\"ean8\":\"{{random 'Barcode.ean8'}}\",\n\"isbn10\":\"{{random 'Code.isbn10'}}\",\n\"isbn13\":\"{{random 'Code.isbn13'}}\"\n}",
+    "headers" : {
+      "Content-Type" : "application/json"
+    },
+    "transformers" : [ "response-template" ]
+  },
+  "uuid" : "41641cde-5bfc-492a-aa70-b05a93d0b8e5",
+  "persistent" : true,
+  "priority" : 1,
+  "insertionIndex" : 3
+}

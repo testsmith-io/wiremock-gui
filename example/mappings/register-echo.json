@@ -1,0 +1,27 @@
+{
+  "id" : "d4e5f6a7-2222-3333-4444-555566667777",
+  "name" : "Register user (echo + faker)",
+  "request" : {
+    "urlPath" : "/api/register",
+    "method" : "POST",
+    "headers" : {
+      "Content-Type" : {
+        "contains" : "json"
+      }
+    }
+  },
+  "response" : {
+    "status" : 201,
+    "body" : "{\n  \"id\": \"{{randomValue type='UUID'}}\",\n  \"username\": \"{{random 'Finance.iban'}}\",\n  \"email\": \"{{jsonPath request.body '$.email'}}\",\n  \"avatar\": \"https://i.pravatar.cc/150?u={{jsonPath request.body '$.username'}}\",\n  \"token\": \"{{randomValue type='ALPHANUMERIC' length=32}}\",\n  \"role\": \"user\",\n  \"createdAt\": \"{{now}}\"\n}",
+    "headers" : {
+      "Content-Type" : "application/json"
+    },
+    "transformers" : [ "response-template" ]
+  },
+  "uuid" : "d4e5f6a7-2222-3333-4444-555566667777",
+  "persistent" : true,
+  "metadata" : {
+    "section" : "Auth"
+  },
+  "insertionIndex" : 2
+}

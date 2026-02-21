@@ -1,0 +1,27 @@
+{
+  "id" : "b0001111-aaaa-bbbb-cccc-ddddeeee0001",
+  "name" : "Todo flow - list empty",
+  "request" : {
+    "urlPath" : "/api/todos",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "jsonBody" : {
+      "todos" : [ ],
+      "total" : 0
+    },
+    "headers" : {
+      "Content-Type" : "application/json"
+    }
+  },
+  "uuid" : "b0001111-aaaa-bbbb-cccc-ddddeeee0001",
+  "persistent" : true,
+  "scenarioName" : "Todo List",
+  "requiredScenarioState" : "Started",
+  "newScenarioState" : "has_items",
+  "metadata" : {
+    "section" : "Todos"
+  },
+  "insertionIndex" : 5
+}

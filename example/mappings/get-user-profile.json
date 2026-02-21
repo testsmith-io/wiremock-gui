@@ -1,0 +1,22 @@
+{
+  "id" : "a1b2c3d4-1111-2222-3333-444455556666",
+  "name" : "Get user by ID (dynamic)",
+  "request" : {
+    "urlPathPattern" : "/api/users/([0-9]+)",
+    "method" : "GET"
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"id\": {{request.pathSegments.[2]}},\n  \"name\": \"{{random 'Name.fullName'}}\",\n  \"email\": \"{{random 'Internet.emailAddress'}}\",\n  \"requestedAt\": \"{{now}}\"\n}",
+    "headers" : {
+      "Content-Type" : "application/json"
+    },
+    "transformers" : [ "response-template" ]
+  },
+  "uuid" : "a1b2c3d4-1111-2222-3333-444455556666",
+  "persistent" : true,
+  "metadata" : {
+    "section" : "Users"
+  },
+  "insertionIndex" : 6
+}
