@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWireMock } from '../App';
+import { useAuth } from '../auth/AuthContext';
+import { formatUptime } from '../utils/formatting';
 
 export function SystemInfo() {
   const { client, health, refreshHealth } = useWireMock();
+  const { canWrite, canAdmin } = useAuth();
   const [error, setError] = useState('');
   const [fixedDelay, setFixedDelay] = useState('');
   const [files, setFiles] = useState<string[]>([]);
@@ -133,69 +136,81 @@ export function SystemInfo() {
         </div>
 
         {/* Global Settings */}
-        <div className="card p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Global Settings</h3>
-          <div className="space-y-3">
-            <div>
-              <label className="label">Fixed Delay (ms)</label>
-              <input
-                value={fixedDelay}
-                onChange={(e) => setFixedDelay(e.target.value)}
-                type="number"
-                min="0"
-                className="input"
-                placeholder="0 (no delay)"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Add a fixed delay to all responses
-              </p>
+        {canAdmin && (
+          <div className="card p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Global Settings</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="label">Fixed Delay (ms)</label>
+                <input
+                  value={fixedDelay}
+                  onChange={(e) => setFixedDelay(e.target.value)}
+                  type="number"
+                  min="0"
+                  className="input"
+                  placeholder="0 (no delay)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Add a fixed delay to all responses
+                </p>
+              </div>
+              <button onClick={handleUpdateSettings} className="btn-primary w-full">
+                Update Settings
+              </button>
             </div>
-            <button onClick={handleUpdateSettings} className="btn-primary w-full">
-              Update Settings
-            </button>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Actions */}
-      <div className="card p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Server Actions</h3>
-        <div className="flex gap-3">
-          <button onClick={handleReset} className="btn-warning">
-            Reset Mappings & Journal
-          </button>
-          <button
-            onClick={async () => {
-              try {
-                await client.persistStubMappings();
-                alert('Mappings persisted to backing store.');
-              } catch (e) {
-                setError(e instanceof Error ? e.message : 'Persist failed');
-              }
-            }}
-            className="btn-primary"
-          >
-            Persist Mappings
-          </button>
-          <button
-            onClick={async () => {
-              try {
-                await client.resetStubMappings();
-                alert('Stub mappings reset to defaults.');
-              } catch (e) {
-                setError(e instanceof Error ? e.message : 'Reset failed');
-              }
-            }}
-            className="btn-secondary"
-          >
-            Reset Stubs to Defaults
-          </button>
-          <div className="flex-1" />
-          <button onClick={handleShutdown} className="btn-danger">
-            Shutdown Server
-          </button>
+      {(canWrite || canAdmin) && (
+        <div className="card p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Server Actions</h3>
+          <div className="flex gap-3">
+            {canAdmin && (
+              <button onClick={handleReset} className="btn-warning">
+                Reset Mappings & Journal
+              </button>
+            )}
+            {canWrite && (
+              <button
+                onClick={async () => {
+                  try {
+                    await client.persistStubMappings();
+                    alert('Mappings persisted to backing store.');
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'Persist failed');
+                  }
+                }}
+                className="btn-primary"
+              >
+                Persist Mappings
+              </button>
+            )}
+            {canWrite && (
+              <button
+                onClick={async () => {
+                  try {
+                    await client.resetStubMappings();
+                    alert('Stub mappings reset to defaults.');
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'Reset failed');
+                  }
+                }}
+                className="btn-secondary"
+              >
+                Reset Stubs to Defaults
+              </button>
+            )}
+            <div className="flex-1" />
+            {canAdmin && (
+              <button onClick={handleShutdown} className="btn-danger">
+                Shutdown Server
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Files */}
       <div className="card p-4">
@@ -219,12 +234,14 @@ export function SystemInfo() {
                   onClick={() => handleViewFile(f)}
                 >
                   <span className="font-mono text-xs truncate">{f}</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteFile(f); }}
-                    className="text-red-500 hover:text-red-700 text-xs ml-2 shrink-0"
-                  >
-                    &times;
-                  </button>
+                  {canWrite && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteFile(f); }}
+                      className="text-red-500 hover:text-red-700 text-xs ml-2 shrink-0"
+                    >
+                      &times;
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -246,17 +263,4 @@ export function SystemInfo() {
       </div>
     </div>
   );
-}
-
-function formatUptime(seconds: number): string {
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  const parts = [];
-  if (d > 0) parts.push(`${d}d`);
-  if (h > 0) parts.push(`${h}h`);
-  if (m > 0) parts.push(`${m}m`);
-  parts.push(`${s}s`);
-  return parts.join(' ');
 }

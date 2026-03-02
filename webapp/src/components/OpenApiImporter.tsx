@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import type { StubMapping } from '../types/wiremock';
 import { parseOpenApiSpec, generateStubMappings } from '../openapi/parser';
 import type { ParsedEndpoint } from '../openapi/parser';
+import { MethodBadge } from './shared/badges';
 
 interface OpenApiImporterProps {
   onImport: (mappings: StubMapping[]) => Promise<void>;
@@ -404,16 +405,4 @@ export function OpenApiImporter({ onImport, onCancel, existingSections }: OpenAp
       )}
     </div>
   );
-}
-
-function MethodBadge({ method }: { method: string }) {
-  const m = method.toUpperCase();
-  const cls =
-    m === 'GET' ? 'badge-get' :
-    m === 'POST' ? 'badge-post' :
-    m === 'PUT' ? 'badge-put' :
-    m === 'DELETE' ? 'badge-delete' :
-    m === 'PATCH' ? 'badge-patch' :
-    'badge-any';
-  return <span className={cls}>{m}</span>;
 }

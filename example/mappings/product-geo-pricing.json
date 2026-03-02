@@ -1,0 +1,30 @@
+{
+  "id" : "a1b2c3d4-ae01-4b0d-0001-aabbccddeeff",
+  "name" : "Product with geo-based pricing",
+  "request" : {
+    "urlPathPattern" : "/api/product",
+    "method" : "GET",
+    "queryParameters" : {
+      "lat" : {
+        "matches" : "-?[0-9]+(\\.[0-9]+)?"
+      },
+      "lng" : {
+        "matches" : "-?[0-9]+(\\.[0-9]+)?"
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : "{\n  \"product\": {\n    \"id\": \"WIDGET-001\",\n    \"name\": \"Premium Widget\",\n    \"description\": \"A high-quality widget for all your needs\"\n  },\n  \"pricing\": {\n    \"basePrice\": 99.99,\n    \"currency\": \"EUR\",\n    \"region\": \"{{geo request.query.lat request.query.lng field='region'}}\",\n    \"discountPercentage\": {{geo request.query.lat request.query.lng field='discount'}},\n    \"finalPrice\": {{geo request.query.lat request.query.lng field='price' basePrice=99.99}}\n  },\n  \"location\": {\n    \"lat\": {{request.query.lat}},\n    \"lng\": {{request.query.lng}}\n  }\n}",
+    "headers" : {
+      "Content-Type" : "application/json"
+    },
+    "transformers" : [ "response-template" ]
+  },
+  "uuid" : "a1b2c3d4-ae01-4b0d-0001-aabbccddeeff",
+  "persistent" : true,
+  "metadata" : {
+    "section" : "Products"
+  },
+  "insertionIndex" : 10
+}

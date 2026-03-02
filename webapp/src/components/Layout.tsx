@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import type { HealthResponse } from '../types/wiremock';
+import { useAuth } from '../auth/AuthContext';
+import { formatUptime } from '../utils/formatting';
 
 type Tab = 'stubs' | 'requests' | 'scenarios' | 'recordings' | 'system';
 
@@ -11,10 +13,11 @@ interface LayoutProps {
   connected: boolean;
   connecting: boolean;
   health: HealthResponse | null;
+  visibleTabs: Tab[];
   children: ReactNode;
 }
 
-const tabs: { id: Tab; label: string; icon: string }[] = [
+const allTabs: { id: Tab; label: string; icon: string }[] = [
   { id: 'stubs', label: 'Stubs', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
   { id: 'requests', label: 'Requests', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4' },
   { id: 'scenarios', label: 'Scenarios', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' },
@@ -30,13 +33,22 @@ function SvgIcon({ d, className = 'w-5 h-5' }: { d: string; className?: string }
   );
 }
 
-export function Layout({ activeTab, onTabChange, baseUrl, onConnect, connected, connecting, health, children }: LayoutProps) {
+const roleBadgeColors: Record<string, string> = {
+  admin: 'bg-red-500/20 text-red-300',
+  editor: 'bg-yellow-500/20 text-yellow-300',
+  viewer: 'bg-blue-500/20 text-blue-300',
+};
+
+export function Layout({ activeTab, onTabChange, baseUrl, onConnect, connected, connecting, health, visibleTabs, children }: LayoutProps) {
   const [urlInput, setUrlInput] = useState(baseUrl);
+  const { authEnabled, isAuthenticated, username, role, logout } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onConnect(urlInput);
   };
+
+  const tabs = allTabs.filter((t) => visibleTabs.includes(t.id));
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -69,8 +81,29 @@ export function Layout({ activeTab, onTabChange, baseUrl, onConnect, connected, 
             </button>
           ))}
         </nav>
-        <div className="p-3 border-t border-brand-700 text-xs text-brand-400">
-          {health ? `v${health.version}` : 'Not connected'}
+
+        {/* User info / logout */}
+        <div className="p-3 border-t border-brand-700">
+          {authEnabled && isAuthenticated && username && role ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-brand-200 truncate">{username}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded ${roleBadgeColors[role] || ''}`}>
+                  {role}
+                </span>
+              </div>
+              <button
+                onClick={logout}
+                className="w-full text-xs text-brand-400 hover:text-white transition-colors text-left"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <div className="text-xs text-brand-400">
+              {health ? `v${health.version}` : 'Not connected'}
+            </div>
+          )}
         </div>
       </div>
 
@@ -129,11 +162,4 @@ export function Layout({ activeTab, onTabChange, baseUrl, onConnect, connected, 
       </div>
     </div>
   );
-}
-
-function formatUptime(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
-  return `${Math.floor(seconds / 86400)}d ${Math.floor((seconds % 86400) / 3600)}h`;
 }

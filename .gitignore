@@ -41,7 +41,11 @@ build/
 ### Downloaded JARs ###
 wiremock-standalone.jar
 
+### Compiled example extensions ###
+example/extensions/classes/
+
 ### Frontend ###
 webapp/node_modules/
 webapp/node/
 webapp/dist/
+wiremock-gui-1.0.0.jar

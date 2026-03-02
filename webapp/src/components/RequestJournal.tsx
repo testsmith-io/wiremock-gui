@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWireMock } from '../App';
+import { useAuth } from '../auth/AuthContext';
 import type { LoggedRequest } from '../types/wiremock';
+import { MethodBadge, StatusBadge } from './shared/badges';
+import { formatDate, tryFormatJson } from '../utils/formatting';
 
 type ViewMode = 'all' | 'unmatched';
 
 export function RequestJournal() {
   const { client } = useWireMock();
+  const { canWrite } = useAuth();
   const [requests, setRequests] = useState<LoggedRequest[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -91,7 +95,7 @@ export function RequestJournal() {
               <option value={500}>500</option>
             </select>
             <button onClick={loadRequests} className="btn-secondary">Refresh</button>
-            <button onClick={handleClearAll} className="btn-danger">Clear All</button>
+            {canWrite && <button onClick={handleClearAll} className="btn-danger">Clear All</button>}
           </div>
         </div>
 
@@ -133,7 +137,7 @@ export function RequestJournal() {
                   <th className="text-left px-4 py-2 font-medium text-gray-600">URL</th>
                   <th className="text-left px-4 py-2 font-medium text-gray-600">Response</th>
                   <th className="text-left px-4 py-2 font-medium text-gray-600">Matched</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Actions</th>
+                  {canWrite && <th className="text-right px-4 py-2 font-medium text-gray-600">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -164,14 +168,16 @@ export function RequestJournal() {
                         <span className="badge bg-green-100 text-green-800">Yes</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteOne(r.id); }}
-                        className="text-red-600 hover:text-red-800 text-xs"
-                      >
-                        Delete
-                      </button>
-                    </td>
+                    {canWrite && (
+                      <td className="px-4 py-2.5 text-right">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteOne(r.id); }}
+                          className="text-red-600 hover:text-red-800 text-xs"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -266,12 +272,14 @@ export function RequestJournal() {
             >
               Copy JSON
             </button>
-            <button
-              onClick={() => handleDeleteOne(selected.id)}
-              className="btn-danger flex-1"
-            >
-              Delete
-            </button>
+            {canWrite && (
+              <button
+                onClick={() => handleDeleteOne(selected.id)}
+                className="btn-danger flex-1"
+              >
+                Delete
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -279,42 +287,3 @@ export function RequestJournal() {
   );
 }
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  } catch {
-    return dateStr;
-  }
-}
-
-function tryFormatJson(str: string): string {
-  try {
-    return JSON.stringify(JSON.parse(str), null, 2);
-  } catch {
-    return str;
-  }
-}
-
-function MethodBadge({ method }: { method: string }) {
-  const m = method.toUpperCase();
-  const cls =
-    m === 'GET' ? 'badge-get' :
-    m === 'POST' ? 'badge-post' :
-    m === 'PUT' ? 'badge-put' :
-    m === 'DELETE' ? 'badge-delete' :
-    m === 'PATCH' ? 'badge-patch' :
-    'badge-any';
-  return <span className={cls}>{m}</span>;
-}
-
-function StatusBadge({ status }: { status?: number }) {
-  if (!status) return <span className="text-gray-400 text-xs">-</span>;
-  const cls =
-    status < 300 ? 'text-green-700 bg-green-50' :
-    status < 400 ? 'text-amber-700 bg-amber-50' :
-    status < 500 ? 'text-orange-700 bg-orange-50' :
-    'text-red-700 bg-red-50';
-  return <span className={`badge ${cls}`}>{status}</span>;
-}

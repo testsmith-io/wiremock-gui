@@ -6,7 +6,7 @@
 
     <groupId>com.wiremock</groupId>
     <artifactId>wiremock-gui</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
     <name>WireMock GUI</name>
     <description>A web-based GUI for managing WireMock stub mappings, served as a WireMock extension</description>

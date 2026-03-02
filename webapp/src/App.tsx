@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { WireMockClient } from './api/wiremock-client';
 import type { HealthResponse } from './types/wiremock';
+import { AuthProvider, useAuth } from './auth/AuthContext';
+import { LoginPage } from './auth/LoginPage';
 import { Layout } from './components/Layout';
-import { StubMappings } from './components/StubMappings';
+import { StubMappings } from './components/stubs/StubMappings';
 import { RequestJournal } from './components/RequestJournal';
-import { Scenarios } from './components/Scenarios';
+import { Scenarios } from './components/scenarios/Scenarios';
 import { Recordings } from './components/Recordings';
 import { SystemInfo } from './components/SystemInfo';
 
@@ -86,22 +88,72 @@ export default function App() {
   };
 
   return (
-    <WireMockContext.Provider value={contextValue}>
-      <Layout
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        baseUrl={baseUrl}
-        onConnect={handleConnect}
-        connected={connected}
-        connecting={connecting}
-        health={health}
-      >
-        {activeTab === 'stubs' && <StubMappings />}
-        {activeTab === 'requests' && <RequestJournal />}
-        {activeTab === 'scenarios' && <Scenarios />}
-        {activeTab === 'recordings' && <Recordings />}
-        {activeTab === 'system' && <SystemInfo />}
-      </Layout>
-    </WireMockContext.Provider>
+    <AuthProvider baseUrl={baseUrl}>
+      <WireMockContext.Provider value={contextValue}>
+        <AppContent
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          baseUrl={baseUrl}
+          onConnect={handleConnect}
+          connected={connected}
+          connecting={connecting}
+          health={health}
+          client={client}
+        />
+      </WireMockContext.Provider>
+    </AuthProvider>
+  );
+}
+
+interface AppContentProps {
+  activeTab: Tab;
+  onTabChange: (tab: Tab) => void;
+  baseUrl: string;
+  onConnect: (url: string) => void;
+  connected: boolean;
+  connecting: boolean;
+  health: HealthResponse | null;
+  client: WireMockClient;
+}
+
+function AppContent({ activeTab, onTabChange, baseUrl, onConnect, connected, connecting, health, client }: AppContentProps) {
+  const { authEnabled, isAuthenticated, role } = useAuth();
+
+  // sync auth token to the WireMock client (synchronous — must happen before children render)
+  const token = localStorage.getItem('wiremock-gui-auth-token');
+  client.setAuthToken(token);
+
+  // if auth is enabled and user is not authenticated, show login
+  if (connected && authEnabled && !isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  // filter tabs based on role
+  const visibleTabs: Tab[] = ['stubs', 'requests', 'scenarios'];
+  if (!authEnabled || role === 'admin') {
+    visibleTabs.push('recordings');
+  }
+  visibleTabs.push('system');
+
+  // if current tab is hidden, switch to stubs
+  const effectiveTab = visibleTabs.includes(activeTab) ? activeTab : 'stubs';
+
+  return (
+    <Layout
+      activeTab={effectiveTab}
+      onTabChange={onTabChange}
+      baseUrl={baseUrl}
+      onConnect={onConnect}
+      connected={connected}
+      connecting={connecting}
+      health={health}
+      visibleTabs={visibleTabs}
+    >
+      {effectiveTab === 'stubs' && <StubMappings />}
+      {effectiveTab === 'requests' && <RequestJournal />}
+      {effectiveTab === 'scenarios' && <Scenarios />}
+      {effectiveTab === 'recordings' && <Recordings />}
+      {effectiveTab === 'system' && <SystemInfo />}
+    </Layout>
   );
 }

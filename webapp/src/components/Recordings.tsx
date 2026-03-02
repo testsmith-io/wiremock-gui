@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWireMock } from '../App';
+import { useAuth } from '../auth/AuthContext';
 import type { RecordingStatus, StubMapping } from '../types/wiremock';
 
 export function Recordings() {
   const { client } = useWireMock();
+  const { canAdmin } = useAuth();
   const [status, setStatus] = useState<RecordingStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -113,49 +115,51 @@ export function Recordings() {
           </div>
 
           {/* Controls */}
-          <div className="card p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Recording Controls</h3>
-            {!isRecording ? (
-              <div>
-                <label className="label">Target Base URL</label>
+          {canAdmin && (
+            <div className="card p-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Recording Controls</h3>
+              {!isRecording ? (
+                <div>
+                  <label className="label">Target Base URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      value={targetUrl}
+                      onChange={(e) => setTargetUrl(e.target.value)}
+                      placeholder="https://api.example.com"
+                      className="input flex-1 font-mono"
+                    />
+                    <button
+                      onClick={handleStart}
+                      className="btn-danger"
+                      disabled={operating}
+                    >
+                      {operating ? 'Starting...' : 'Start Recording'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    WireMock will proxy requests to this URL and record the responses as stub mappings.
+                  </p>
+                </div>
+              ) : (
                 <div className="flex gap-2">
-                  <input
-                    value={targetUrl}
-                    onChange={(e) => setTargetUrl(e.target.value)}
-                    placeholder="https://api.example.com"
-                    className="input flex-1 font-mono"
-                  />
                   <button
-                    onClick={handleStart}
-                    className="btn-danger"
+                    onClick={handleStop}
+                    className="btn-primary"
                     disabled={operating}
                   >
-                    {operating ? 'Starting...' : 'Start Recording'}
+                    {operating ? 'Stopping...' : 'Stop Recording'}
+                  </button>
+                  <button
+                    onClick={handleSnapshot}
+                    className="btn-secondary"
+                    disabled={operating}
+                  >
+                    Take Snapshot
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  WireMock will proxy requests to this URL and record the responses as stub mappings.
-                </p>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleStop}
-                  className="btn-primary"
-                  disabled={operating}
-                >
-                  {operating ? 'Stopping...' : 'Stop Recording'}
-                </button>
-                <button
-                  onClick={handleSnapshot}
-                  className="btn-secondary"
-                  disabled={operating}
-                >
-                  Take Snapshot
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Recorded mappings */}
           {recordedMappings.length > 0 && (

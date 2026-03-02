@@ -1,19 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useWireMock } from '../App';
-import type { StubMapping } from '../types/wiremock';
-import { StubEditor } from './StubEditor';
-import { OpenApiImporter } from './OpenApiImporter';
-import { createZip } from '../utils/zip';
-import type { ZipEntry } from '../utils/zip';
+import { useWireMock } from '../../App';
+import { useAuth } from '../../auth/AuthContext';
+import type { StubMapping } from '../../types/wiremock';
+import { StubEditor } from '../editor/StubEditor';
+import { OpenApiImporter } from '../OpenApiImporter';
+import { StubRow } from './StubRow';
+import { getSection } from '../../utils/stub';
+import { createZip } from '../../utils/zip';
+import type { ZipEntry } from '../../utils/zip';
 
 const UNSECTIONED = '(Unsectioned)';
 
-function getSection(m: StubMapping): string {
-  return (m.metadata as Record<string, unknown>)?.section as string || '';
-}
-
 export function StubMappings() {
   const { client } = useWireMock();
+  const { canWrite } = useAuth();
   const [mappings, setMappings] = useState<StubMapping[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -138,10 +138,9 @@ export function StubMappings() {
     const nameCount = new Map<string, number>();
 
     for (const m of mappings) {
-      const section = (m.metadata as Record<string, unknown>)?.section as string || '';
+      const section = getSection(m);
       const baseName = sanitizeFilename(m.name || m.id || 'stub');
 
-      // Deduplicate filenames
       const key = `${section}/${baseName}`;
       const count = nameCount.get(key) || 0;
       nameCount.set(key, count + 1);
@@ -177,13 +176,11 @@ export function StubMappings() {
 
   // Filter by search + section
   const filtered = mappings.filter((m) => {
-    // Section filter
     if (sectionFilter !== '__all__') {
       const ms = getSection(m);
       if (sectionFilter === '__none__' && ms) return false;
       if (sectionFilter !== '__none__' && ms !== sectionFilter) return false;
     }
-    // Text search
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     const url = m.request?.url || m.request?.urlPath || m.request?.urlPattern || m.request?.urlPathPattern || '';
@@ -204,7 +201,6 @@ export function StubMappings() {
     if (!sectionMap.has(sec)) sectionMap.set(sec, []);
     sectionMap.get(sec)!.push(m);
   }
-  // Named sections first (sorted), unsectioned last
   const sortedKeys = [...sectionMap.keys()].sort((a, b) => {
     if (!a) return 1;
     if (!b) return -1;
@@ -256,9 +252,9 @@ export function StubMappings() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setCreating(true)} className="btn-primary">+ New Stub</button>
-            <button onClick={() => setImportingOpenApi(true)} className="btn-secondary">Import OpenAPI</button>
-            <button onClick={handleImport} className="btn-secondary">Import</button>
+            {canWrite && <button onClick={() => setCreating(true)} className="btn-primary">+ New Stub</button>}
+            {canWrite && <button onClick={() => setImportingOpenApi(true)} className="btn-secondary">Import OpenAPI</button>}
+            {canWrite && <button onClick={handleImport} className="btn-secondary">Import</button>}
             <div className="relative">
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
@@ -314,9 +310,9 @@ export function StubMappings() {
             </select>
           )}
           <div className="flex gap-1">
-            <button onClick={handleSave} className="btn-secondary text-xs">Persist</button>
-            <button onClick={handleReset} className="btn-secondary text-xs">Reset</button>
-            <button onClick={handleDeleteAll} className="btn-danger text-xs">Delete All</button>
+            {canWrite && <button onClick={handleSave} className="btn-secondary text-xs">Persist</button>}
+            {canWrite && <button onClick={handleReset} className="btn-secondary text-xs">Reset</button>}
+            {canWrite && <button onClick={handleDeleteAll} className="btn-danger text-xs">Delete All</button>}
             <button onClick={loadMappings} className="btn-secondary text-xs">Refresh</button>
           </div>
         </div>
@@ -344,7 +340,6 @@ export function StubMappings() {
               const isCollapsed = collapsedSections.has(group.key);
               return (
                 <div key={group.key} className="card overflow-hidden">
-                  {/* Section header */}
                   <button
                     onClick={() => toggleSection(group.key)}
                     className="w-full flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 hover:bg-gray-100 transition-colors text-left"
@@ -362,7 +357,6 @@ export function StubMappings() {
                       ({group.mappings.length})
                     </span>
                   </button>
-                  {/* Section rows */}
                   {!isCollapsed && (
                     <table className="w-full text-sm">
                       <tbody>
@@ -374,6 +368,7 @@ export function StubMappings() {
                             onSelect={() => setSelectedId(m.id || m.uuid || null)}
                             onEdit={() => setEditing(m)}
                             onDelete={() => handleDelete(m.id || m.uuid || '')}
+                            canWrite={canWrite}
                           />
                         ))}
                       </tbody>
@@ -384,7 +379,7 @@ export function StubMappings() {
             })}
           </div>
         ) : (
-          /* Flat table view (no sections defined) */
+          /* Flat table view */
           <div className="card overflow-hidden flex-1 overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
@@ -394,7 +389,7 @@ export function StubMappings() {
                   <th className="text-left px-4 py-2 font-medium text-gray-600">Status</th>
                   <th className="text-left px-4 py-2 font-medium text-gray-600">Name</th>
                   <th className="text-left px-4 py-2 font-medium text-gray-600">Priority</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Actions</th>
+                  {canWrite && <th className="text-right px-4 py-2 font-medium text-gray-600">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -406,6 +401,7 @@ export function StubMappings() {
                     onSelect={() => setSelectedId(m.id || m.uuid || null)}
                     onEdit={() => setEditing(m)}
                     onDelete={() => handleDelete(m.id || m.uuid || '')}
+                    canWrite={canWrite}
                   />
                 ))}
               </tbody>
@@ -474,8 +470,8 @@ export function StubMappings() {
             )}
           </div>
           <div className="flex gap-2 mt-4">
-            <button onClick={() => setEditing(selected)} className="btn-primary flex-1">Edit</button>
-            <button onClick={() => handleDelete(selected.id || '')} className="btn-danger flex-1">Delete</button>
+            {canWrite && <button onClick={() => setEditing(selected)} className="btn-primary flex-1">Edit</button>}
+            {canWrite && <button onClick={() => handleDelete(selected.id || '')} className="btn-danger flex-1">Delete</button>}
             <button
               onClick={() => {
                 navigator.clipboard.writeText(JSON.stringify(selected, null, 2));
@@ -489,85 +485,6 @@ export function StubMappings() {
       )}
     </div>
   );
-}
-
-function StubRow({
-  mapping: m,
-  isSelected,
-  onSelect,
-  onEdit,
-  onDelete,
-}: {
-  mapping: StubMapping;
-  isSelected: boolean;
-  onSelect: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <tr
-      onClick={onSelect}
-      className={`border-b border-gray-100 cursor-pointer transition-colors ${
-        isSelected ? 'bg-brand-50' : 'hover:bg-gray-50'
-      }`}
-    >
-      <td className="px-4 py-2.5">
-        <MethodBadge method={m.request?.method} />
-      </td>
-      <td className="px-4 py-2.5 font-mono text-xs truncate max-w-xs" title={getUrl(m)}>
-        {getUrl(m)}
-      </td>
-      <td className="px-4 py-2.5">
-        <StatusBadge status={m.response?.status} />
-      </td>
-      <td className="px-4 py-2.5 text-gray-600 truncate max-w-[150px]" title={m.name || m.id}>
-        {m.name || <span className="text-gray-300 text-xs">{m.id?.slice(0, 8)}</span>}
-      </td>
-      <td className="px-4 py-2.5 text-gray-500">
-        {m.priority || '-'}
-      </td>
-      <td className="px-4 py-2.5 text-right">
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="text-brand-500 hover:text-brand-700 text-xs mr-2"
-        >
-          Edit
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="text-red-600 hover:text-red-800 text-xs"
-        >
-          Delete
-        </button>
-      </td>
-    </tr>
-  );
-}
-
-function getUrl(m: StubMapping): string {
-  return m.request?.url || m.request?.urlPath || m.request?.urlPattern || m.request?.urlPathPattern || '(any)';
-}
-
-function MethodBadge({ method }: { method?: string }) {
-  const m = (method || 'ANY').toUpperCase();
-  const cls =
-    m === 'GET' ? 'badge-get' :
-    m === 'POST' ? 'badge-post' :
-    m === 'PUT' ? 'badge-put' :
-    m === 'DELETE' ? 'badge-delete' :
-    m === 'PATCH' ? 'badge-patch' :
-    'badge-any';
-  return <span className={cls}>{m}</span>;
-}
-
-function StatusBadge({ status }: { status?: number }) {
-  if (!status) return <span className="text-gray-400 text-xs">-</span>;
-  const cls =
-    status < 300 ? 'text-green-700 bg-green-50' :
-    status < 400 ? 'text-amber-700 bg-amber-50' :
-    status < 500 ? 'text-orange-700 bg-orange-50' :
-    'text-red-700 bg-red-50';
-  return <span className={`badge ${cls}`}>{status}</span>;
 }
 
 function sanitizeFilename(name: string): string {

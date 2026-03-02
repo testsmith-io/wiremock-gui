@@ -10,17 +10,28 @@ import type {
 } from '../types/wiremock';
 
 export class WireMockClient {
+  private authToken: string | null = null;
+
   constructor(private baseUrl: string) {}
+
+  setAuthToken(token: string | null) {
+    this.authToken = token;
+  }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string>),
+    };
+    if (this.authToken) {
+      headers['Authorization'] = `Bearer ${this.authToken}`;
+    }
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      window.dispatchEvent(new CustomEvent('wiremock-auth-expired'));
+      throw new Error('Authentication required');
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       throw new Error(`${res.status} ${res.statusText}: ${text}`);
@@ -158,15 +169,28 @@ export class WireMockClient {
   }
 
   async getFile(filename: string): Promise<string> {
-    const res = await fetch(`${this.baseUrl}/__admin/files/${filename}`);
+    const headers: Record<string, string> = {};
+    if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`;
+    const res = await fetch(`${this.baseUrl}/__admin/files/${filename}`, { headers });
+    if (res.status === 401) {
+      window.dispatchEvent(new CustomEvent('wiremock-auth-expired'));
+      throw new Error('Authentication required');
+    }
     return res.text();
   }
 
   async updateFile(filename: string, content: string): Promise<void> {
-    await fetch(`${this.baseUrl}/__admin/files/${filename}`, {
+    const headers: Record<string, string> = {};
+    if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`;
+    const res = await fetch(`${this.baseUrl}/__admin/files/${filename}`, {
       method: 'PUT',
+      headers,
       body: content,
     });
+    if (res.status === 401) {
+      window.dispatchEvent(new CustomEvent('wiremock-auth-expired'));
+      throw new Error('Authentication required');
+    }
   }
 
   async deleteFile(filename: string): Promise<void> {
