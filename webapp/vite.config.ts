@@ -3,7 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/__admin/gui/',
+  // Relative base so asset URLs resolve against a runtime <base href> (see index.html).
+  // This allows the GUI to work behind a reverse-proxy sub-path without rebuilding.
+  base: './',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
