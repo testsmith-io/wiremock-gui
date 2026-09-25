@@ -31,7 +31,10 @@ function getDefaultBaseUrl(): string {
   const saved = localStorage.getItem('wiremock-gui-baseurl');
   if (saved) return saved;
   if (window.location.pathname.includes('/__admin')) {
-    return window.location.origin;
+    // Preserve any reverse-proxy prefix before /__admin (e.g. /wiremock/__admin/gui → /wiremock).
+    const adminIdx = window.location.pathname.indexOf('/__admin');
+    const prefix = window.location.pathname.substring(0, adminIdx);
+    return window.location.origin + prefix;
   }
   return 'http://localhost:8080';
 }

@@ -1,6 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <script>
+      // Set <base href> to the actual GUI mount path so relative asset URLs resolve
+      // correctly whether served at /__admin/gui or /<prefix>/__admin/gui.
+      (function () {
+        var path = window.location.pathname;
+        var marker = '/__admin/gui';
+        var idx = path.indexOf(marker);
+        if (idx !== -1) {
+          var basePath = path.substring(0, idx + marker.length);
+          if (!basePath.endsWith('/')) basePath += '/';
+          var base = document.createElement('base');
+          base.href = basePath;
+          document.head.insertBefore(base, document.head.firstChild);
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WireMock GUI</title>
