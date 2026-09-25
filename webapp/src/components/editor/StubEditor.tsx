@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import type { StubMapping } from '../../types/wiremock';
+import { useState, useRef, useMemo } from 'react';
+import type { StubMapping, ContentPattern } from '../../types/wiremock';
 import { TemplatePicker } from './TemplatePicker';
 
 interface StubEditorProps {
@@ -19,6 +19,41 @@ const URL_MATCH_TYPES = [
 
 type EditorMode = 'form' | 'json';
 
+// Match types the form can render for each kind of pattern.
+const HEADER_QUERY_MATCHERS = [
+  { value: 'equalTo', label: 'Equals' },
+  { value: 'contains', label: 'Contains' },
+  { value: 'matches', label: 'Matches (regex)' },
+  { value: 'doesNotMatch', label: "Doesn't match" },
+  { value: 'absent', label: 'Absent' },
+];
+const BODY_MATCHERS = [
+  { value: 'equalTo', label: 'Equals' },
+  { value: 'contains', label: 'Contains' },
+  { value: 'matches', label: 'Matches (regex)' },
+  { value: 'doesNotMatch', label: "Doesn't match" },
+  { value: 'equalToJson', label: 'Equal to JSON' },
+  { value: 'equalToXml', label: 'Equal to XML' },
+  { value: 'matchesJsonPath', label: 'Matches JSONPath' },
+  { value: 'matchesXPath', label: 'Matches XPath' },
+];
+const HEADER_QUERY_MATCH_SET = new Set(HEADER_QUERY_MATCHERS.map((m) => m.value));
+const BODY_MATCH_SET = new Set(BODY_MATCHERS.map((m) => m.value));
+
+// Fields the form editor reads and rebuilds. Anything outside these sets is
+// preserved verbatim by buildMapping() and (if present) triggers JSON mode so
+// it is never silently dropped.
+const MANAGED_REQUEST_KEYS = new Set([
+  'method', 'url', 'urlPath', 'urlPattern', 'urlPathPattern', 'headers', 'queryParameters', 'bodyPatterns',
+]);
+const MANAGED_RESPONSE_KEYS = new Set([
+  'status', 'headers', 'body', 'jsonBody', 'fixedDelayMilliseconds', 'transformers',
+]);
+const MANAGED_TOP_KEYS = new Set([
+  'id', 'uuid', 'name', 'request', 'response', 'persistent', 'priority',
+  'scenarioName', 'requiredScenarioState', 'newScenarioState', 'metadata',
+]);
+
 const DEFAULT_MAPPING: StubMapping = {
   request: {
     method: 'GET',
@@ -35,7 +70,10 @@ const DEFAULT_MAPPING: StubMapping = {
 
 export function StubEditor({ mapping, onSave, onCancel, existingSections = [] }: StubEditorProps) {
   const isEdit = !!mapping?.id;
-  const [mode, setMode] = useState<EditorMode>('form');
+  // Detect fields the form can't represent; such stubs open in JSON mode so
+  // their advanced matchers/response fields are never silently lost.
+  const analysis = useMemo(() => analyzeMapping(mapping), [mapping]);
+  const [mode, setMode] = useState<EditorMode>(analysis.representable ? 'form' : 'json');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -70,6 +108,16 @@ export function StubEditor({ mapping, onSave, onCancel, existingSections = [] }:
   // Request headers
   const [reqHeaders, setReqHeaders] = useState<Array<{ key: string; matchType: string; value: string }>>(
     parseRequestHeaders(mapping)
+  );
+
+  // Request query parameters
+  const [queryParams, setQueryParams] = useState<Array<{ key: string; matchType: string; value: string }>>(
+    parseQueryParams(mapping)
+  );
+
+  // Request body patterns (an array of matchers, no key)
+  const [bodyPatterns, setBodyPatterns] = useState<Array<{ matchType: string; value: string }>>(
+    parseBodyPatterns(mapping)
   );
 
   // Response headers
@@ -125,11 +173,28 @@ export function StubEditor({ mapping, onSave, onCancel, existingSections = [] }:
     }
 
     // Request headers
-    const rh: Record<string, Record<string, string>> = {};
+    const rh: Record<string, ContentPattern> = {};
     reqHeaders.forEach(({ key, matchType, value }) => {
-      if (key && value) rh[key] = { [matchType]: value };
+      const p = buildPattern(matchType, value);
+      if (key && p) rh[key] = p;
     });
     if (Object.keys(rh).length > 0) m.request.headers = rh;
+
+    // Query parameters
+    const qp: Record<string, ContentPattern> = {};
+    queryParams.forEach(({ key, matchType, value }) => {
+      const p = buildPattern(matchType, value);
+      if (key && p) qp[key] = p;
+    });
+    if (Object.keys(qp).length > 0) m.request.queryParameters = qp;
+
+    // Body patterns
+    const bp: ContentPattern[] = [];
+    bodyPatterns.forEach(({ matchType, value }) => {
+      const p = buildPattern(matchType, value);
+      if (p) bp.push(p);
+    });
+    if (bp.length > 0) m.request.bodyPatterns = bp;
 
     // Response body
     if (responseBody) {
@@ -171,6 +236,24 @@ export function StubEditor({ mapping, onSave, onCancel, existingSections = [] }:
 
     if (mapping?.id) m.id = mapping.id;
     if (mapping?.uuid) m.uuid = mapping.uuid;
+
+    // Preserve any fields the form doesn't manage (e.g. request.cookies,
+    // request.basicAuthCredentials, response.fault, response.proxyBaseUrl,
+    // postServeActions) so editing/saving from the form never strips them.
+    if (mapping) {
+      const req = m.request as Record<string, unknown>;
+      Object.entries(mapping.request || {}).forEach(([k, v]) => {
+        if (!MANAGED_REQUEST_KEYS.has(k)) req[k] = v;
+      });
+      const res = m.response as Record<string, unknown>;
+      Object.entries(mapping.response || {}).forEach(([k, v]) => {
+        if (!MANAGED_RESPONSE_KEYS.has(k)) res[k] = v;
+      });
+      const top = m as unknown as Record<string, unknown>;
+      Object.entries(mapping).forEach(([k, v]) => {
+        if (!MANAGED_TOP_KEYS.has(k)) top[k] = v;
+      });
+    }
 
     return m;
   };
@@ -227,6 +310,17 @@ export function StubEditor({ mapping, onSave, onCancel, existingSections = [] }:
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {analysis.reasons.length > 0 && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-800">
+          {mode === 'json' ? (
+            <>This stub uses fields the form editor can’t display, so it opened in the JSON editor to keep them intact:</>
+          ) : (
+            <>Heads up: this stub has advanced fields not shown in the form. They’re preserved on save, but edit them in the JSON editor to be safe:</>
+          )}
+          <span className="font-mono text-xs"> {analysis.reasons.join(', ')}</span>
         </div>
       )}
 
@@ -313,7 +407,7 @@ export function StubEditor({ mapping, onSave, onCancel, existingSections = [] }:
             </div>
 
             {/* Request headers */}
-            <div>
+            <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <label className="label mb-0">Request Headers</label>
                 <button
@@ -336,19 +430,102 @@ export function StubEditor({ mapping, onSave, onCancel, existingSections = [] }:
                     onChange={(e) => { const n = [...reqHeaders]; n[i].matchType = e.target.value; setReqHeaders(n); }}
                     className="select w-40"
                   >
-                    <option value="equalTo">Equals</option>
-                    <option value="contains">Contains</option>
-                    <option value="matches">Matches (regex)</option>
-                    <option value="doesNotMatch">Doesn't match</option>
+                    {HEADER_QUERY_MATCHERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                   <input
                     value={h.value}
                     onChange={(e) => { const n = [...reqHeaders]; n[i].value = e.target.value; setReqHeaders(n); }}
                     className="input flex-1"
                     placeholder="Value"
+                    disabled={h.matchType === 'absent'}
                   />
                   <button
                     onClick={() => setReqHeaders(reqHeaders.filter((_, j) => j !== i))}
+                    className="text-red-500 hover:text-red-700 px-1"
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Query parameters */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="label mb-0">Query Parameters</label>
+                <button
+                  onClick={() => setQueryParams([...queryParams, { key: '', matchType: 'equalTo', value: '' }])}
+                  className="text-xs text-brand-500 hover:text-brand-700"
+                >
+                  + Add Query Param
+                </button>
+              </div>
+              {queryParams.length === 0 && (
+                <p className="text-[11px] text-gray-400 mb-1">Match on <code className="font-mono bg-gray-100 px-1 rounded">?name=value</code> query string parameters.</p>
+              )}
+              {queryParams.map((q, i) => (
+                <div key={i} className="flex gap-2 mb-2">
+                  <input
+                    value={q.key}
+                    onChange={(e) => { const n = [...queryParams]; n[i].key = e.target.value; setQueryParams(n); }}
+                    className="input flex-1"
+                    placeholder="Parameter name"
+                  />
+                  <select
+                    value={q.matchType}
+                    onChange={(e) => { const n = [...queryParams]; n[i].matchType = e.target.value; setQueryParams(n); }}
+                    className="select w-40"
+                  >
+                    {HEADER_QUERY_MATCHERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  <input
+                    value={q.value}
+                    onChange={(e) => { const n = [...queryParams]; n[i].value = e.target.value; setQueryParams(n); }}
+                    className="input flex-1"
+                    placeholder="Value"
+                    disabled={q.matchType === 'absent'}
+                  />
+                  <button
+                    onClick={() => setQueryParams(queryParams.filter((_, j) => j !== i))}
+                    className="text-red-500 hover:text-red-700 px-1"
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Body patterns */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="label mb-0">Body Patterns</label>
+                <button
+                  onClick={() => setBodyPatterns([...bodyPatterns, { matchType: 'equalToJson', value: '' }])}
+                  className="text-xs text-brand-500 hover:text-brand-700"
+                >
+                  + Add Body Pattern
+                </button>
+              </div>
+              {bodyPatterns.length === 0 && (
+                <p className="text-[11px] text-gray-400 mb-1">Match on the request body (JSON, XML, regex, JSONPath, XPath).</p>
+              )}
+              {bodyPatterns.map((b, i) => (
+                <div key={i} className="flex gap-2 mb-2">
+                  <select
+                    value={b.matchType}
+                    onChange={(e) => { const n = [...bodyPatterns]; n[i].matchType = e.target.value; setBodyPatterns(n); }}
+                    className="select w-44"
+                  >
+                    {BODY_MATCHERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  <input
+                    value={b.value}
+                    onChange={(e) => { const n = [...bodyPatterns]; n[i].value = e.target.value; setBodyPatterns(n); }}
+                    className="input flex-1 font-mono text-sm"
+                    placeholder={b.matchType === 'matchesJsonPath' ? '$.name' : b.matchType === 'equalToJson' ? '{"key":"value"}' : 'Value'}
+                  />
+                  <button
+                    onClick={() => setBodyPatterns(bodyPatterns.filter((_, j) => j !== i))}
                     className="text-red-500 hover:text-red-700 px-1"
                   >
                     &times;
@@ -562,9 +739,7 @@ function getUrlValue(mapping?: StubMapping): string {
 function parseRequestHeaders(mapping?: StubMapping): Array<{ key: string; matchType: string; value: string }> {
   if (!mapping?.request?.headers) return [];
   return Object.entries(mapping.request.headers).map(([key, pattern]) => {
-    const p = pattern as Record<string, string>;
-    const matchType = Object.keys(p)[0] || 'equalTo';
-    const value = p[matchType] || '';
+    const { matchType, value } = readPattern(pattern);
     return { key, matchType, value };
   });
 }
@@ -574,4 +749,86 @@ function parseResponseHeaders(mapping?: StubMapping): Array<{ key: string; value
   return Object.entries(mapping.response.headers)
     .filter(([key]) => key !== 'Content-Type')
     .map(([key, value]) => ({ key, value }));
+}
+
+function parseQueryParams(mapping?: StubMapping): Array<{ key: string; matchType: string; value: string }> {
+  if (!mapping?.request?.queryParameters) return [];
+  return Object.entries(mapping.request.queryParameters).map(([key, pattern]) => {
+    const { matchType, value } = readPattern(pattern);
+    return { key, matchType, value };
+  });
+}
+
+function parseBodyPatterns(mapping?: StubMapping): Array<{ matchType: string; value: string }> {
+  if (!mapping?.request?.bodyPatterns) return [];
+  return mapping.request.bodyPatterns.map((pattern) => readPattern(pattern));
+}
+
+// Read a single-matcher content pattern into { matchType, value } for the form.
+function readPattern(pattern: unknown): { matchType: string; value: string } {
+  const p = (pattern || {}) as Record<string, unknown>;
+  if (p.absent === true) return { matchType: 'absent', value: '' };
+  const matchType = Object.keys(p)[0] || 'equalTo';
+  let value = p[matchType];
+  // matchesJsonPath may be an object { expression, ... }; show its expression.
+  if (matchType === 'matchesJsonPath' && value && typeof value === 'object') {
+    value = (value as { expression?: string }).expression ?? '';
+  }
+  return { matchType, value: value == null ? '' : String(value) };
+}
+
+// Build a content pattern from form inputs, or null if it carries nothing.
+function buildPattern(matchType: string, value: string): ContentPattern | null {
+  if (matchType === 'absent') return { absent: true };
+  if (!value) return null;
+  return { [matchType]: value };
+}
+
+// Is a pattern one the form can faithfully round-trip? (single known matcher,
+// string value — or `absent: true`.)
+function isSimplePattern(pattern: unknown, allowed: Set<string>): boolean {
+  if (!pattern || typeof pattern !== 'object' || Array.isArray(pattern)) return false;
+  const keys = Object.keys(pattern as object);
+  if (keys.length !== 1) return false;
+  const k = keys[0];
+  if (!allowed.has(k)) return false;
+  const v = (pattern as Record<string, unknown>)[k];
+  if (k === 'absent') return v === true;
+  return typeof v === 'string';
+}
+
+// Determine whether a stub is fully representable in the form editor, and if
+// not, which fields force JSON mode. Query/body patterns count as "absent"
+// matchers only for headers/query, not body.
+function analyzeMapping(mapping?: StubMapping): { representable: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (!mapping) return { representable: true, reasons };
+
+  const req = mapping.request || {};
+  Object.keys(req).forEach((k) => {
+    if (!MANAGED_REQUEST_KEYS.has(k)) reasons.push(`request.${k}`);
+  });
+  Object.entries(req.headers || {}).forEach(([k, v]) => {
+    if (!isSimplePattern(v, HEADER_QUERY_MATCH_SET)) reasons.push(`request.headers.${k}`);
+  });
+  Object.entries(req.queryParameters || {}).forEach(([k, v]) => {
+    if (!isSimplePattern(v, HEADER_QUERY_MATCH_SET)) reasons.push(`request.queryParameters.${k}`);
+  });
+  (req.bodyPatterns || []).forEach((p, i) => {
+    if (!isSimplePattern(p, BODY_MATCH_SET)) reasons.push(`request.bodyPatterns[${i}]`);
+  });
+
+  const res = mapping.response || {};
+  Object.keys(res).forEach((k) => {
+    if (!MANAGED_RESPONSE_KEYS.has(k)) reasons.push(`response.${k}`);
+  });
+  if (Array.isArray(res.transformers) && res.transformers.some((t) => t !== 'response-template')) {
+    reasons.push('response.transformers');
+  }
+
+  Object.keys(mapping).forEach((k) => {
+    if (!MANAGED_TOP_KEYS.has(k)) reasons.push(k);
+  });
+
+  return { representable: reasons.length === 0, reasons };
 }
