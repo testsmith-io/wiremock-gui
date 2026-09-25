@@ -112,7 +112,24 @@ export class WireMockClient {
   }
 
   async getUnmatchedRequests(): Promise<RequestJournalResponse> {
-    return this.request('/__admin/requests/unmatched');
+    // The unmatched endpoint returns bare LoggedRequest objects, whereas the
+    // main journal endpoint returns ServeEvents ({ id, request, responseDefinition }).
+    // Normalize to the ServeEvent shape the UI expects.
+    const data = await this.request<{ requests?: unknown[]; meta?: { total: number } }>(
+      '/__admin/requests/unmatched'
+    );
+    const raw = data.requests || [];
+    const requests = raw.map((req, i) => {
+      const r = req as { id?: string; loggedDate?: number } & Record<string, unknown>;
+      // Unmatched requests carry no serve-event id; synthesize a stable-enough
+      // one so React keys don't collide and rows stay distinct.
+      return {
+        id: r.id ?? `unmatched-${r.loggedDate ?? ''}-${i}`,
+        request: r,
+        responseDefinition: { status: 404, fromConfiguredStub: false },
+      };
+    }) as unknown as RequestJournalResponse['requests'];
+    return { requests, meta: { total: data.meta?.total ?? requests.length } };
   }
 
   async deleteRequest(id: string): Promise<void> {
